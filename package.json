@@ -1,0 +1,54 @@
+{
+  "name": "@envflow/sun-cli",
+  "version": "0.0.1",
+  "description": "Sun CLI - Platform Infrastructure Management Tool",
+  "main": "bin/sun.js",
+  "bin": {
+    "sun": "./bin/sun.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "scripts/",
+    "README.md",
+    "LICENSE",
+    "package-lock.json"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "start": "node bin/sun.js",
+    "test": "jest",
+    "dev": "nodemon bin/sun.js",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "keywords": [
+    "platform",
+    "infrastructure",
+    "cli",
+    "devops",
+    "automation"
+  ],
+  "author": "EnvFlow",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElieCookie/EnvFlow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ElieCookie/EnvFlow/issues"
+  },
+  "homepage": "https://github.com/ElieCookie/EnvFlow#readme"
+}

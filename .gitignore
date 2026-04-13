@@ -2,9 +2,5 @@ node_modules
 .claude/
 .bmad/
 *.txt
-# DevSpace directories
 .devspace/
-# Generated DevSpace config (keep template)
-# devspace.yaml
-# Environment files
 .env.devspace
