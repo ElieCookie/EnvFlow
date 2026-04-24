@@ -12,6 +12,12 @@ const {
 } = require("../utils/tools");
 const paths = require("../paths");
 
+// const TOOL_CHECKS = [
+//   { name: 'DevSpace', bin: 'devspace', fix: 'brew install devspace' },
+//   { name: 'AWS CLI', bin: 'aws', fix: 'brew install awscli' },
+//   { name: 'kubectl', bin: 'kubectl', fix: 'brew install kubectl' }
+// ];
+
 async function loadDoctorMode(options) {
   if (options.withAws) return "aws";
   try {

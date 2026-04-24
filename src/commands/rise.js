@@ -12,6 +12,11 @@ const os = require("os");
 const { execSync } = require("child_process");
 const paths = require("../paths");
 
+// const DIRS = {
+//   workspace: () => path.join(os.homedir(), 'envflow'),
+//   ephemeral: () => path.join(os.homedir(), '.envflow-ephemeral')
+// };
+
 function loadYamlIfPresent(text) {
   try {
     return require("js-yaml").load(text);

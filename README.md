@@ -31,6 +31,26 @@ sun rise
 sun doctor
 ```
 
+## Commands
+
+### `sun rise`
+
+Complete environment setup:
+
+- Installs required tools (DevSpace, AWS CLI, kubectl) via Homebrew
+- Configures AWS credentials with SSO login (later)
+- Sets up kubectl context for EKS cluster (later)
+- Clones all service repositories from `.sunrc`
+- Creates directory structure
+
+### `sun doctor`
+
+Checks system health:
+
+- Verifies required tools are installed
+- Validates AWS credentials and Kubernetes context (later)
+- Checks directory structure and helm-charts in repo
+
 ## Minikube flow (no AWS login)
 
 1. Install [minikube](https://minikube.sigs.k8s.io/docs/start/), kubectl, DevSpace, and Git (Homebrew is fine on macOS).
@@ -67,6 +87,34 @@ sun rise
 ```
 
 Global install runs `postinstall`, which clones this repo to `~/envflow/sun-cli` when missing; for active development, prefer working directly in your EnvFlow clone as above.
+
+## Configuration
+
+The `.sunrc` file defines your services. It is automatically available at `~/envflow/sun-cli/.sunrc` after installation.
+
+```yaml
+services:
+  player-api:
+    envfile: .env.devspace
+    port: 8080
+    host: "api.dev.example.com"
+    repo: "player-backend"
+    command: "yarn start:dev"
+    chart: "player-api"
+    secret-name: "eks/development/external-secret"
+```
+
+## Architecture
+
+~/envflow/ # Cloned repositories
+├── player-backend/
+├── player-frontend/
+└── core/
+
+~/.envflow-ephemeral/ # DevSpace configs
+├── helm-charts/ # Service route charts
+├── devspace-[env].yaml # Environment config
+└── [env].yaml # Helm values
 
 ## License
 
