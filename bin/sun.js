@@ -15,12 +15,14 @@ program
 
 program
   .command('rise')
-  .description('Configure and set up the development environment')
+  .description('Configure and set up the development environment (minikube by default)')
+  .option('--with-aws', 'also require AWS CLI (EKS-oriented; no SSO login from this command)')
   .action(riseHandler);
 
 program
   .command('doctor')
   .description('🩺  Check system health and configuration')
+  .option('--with-aws', 'require AWS credentials checks (see ~/.envflow/config.json provider)')
   .action(doctorHandler);
 
 program.configureHelp({
@@ -31,8 +33,9 @@ program.configureHelp({
 program.on('--help', () => {
   console.log('');
   console.log('Examples:');
-  console.log('  $ sun rise                     # Initial setup and clone repos');
-  console.log('  $ sun doctor                   # Check system health');
+  console.log('  $ sun rise                     # Tools, dirs, helm-charts symlink, optional clones');
+  console.log('  $ sun rise --with-aws          # Same plus AWS CLI (for EKS later)');
+  console.log('  $ sun doctor                   # Minikube + kubectl + layout');
   console.log('');
   console.log('For more information, visit: https://github.com/ElieCookie/EnvFlow');
 });
