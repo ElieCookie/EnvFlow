@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>EnvFlow Local Environment</h2>
+        <p class="subtitle">
+          X-Debug routing for dev hostnames (see manifest.json)
+        </p>
+      </div>
+
+      <div class="add-section">
+        <input
+          type="text"
+          id="environmentName"
+          placeholder="Environment name (e.g., local, staging, dev-123)"
+        />
+        <button id="addEnvironment" class="btn-add">Add Environment</button>
+      </div>
+
+      <div class="current-env" id="currentEnv">
+        <span class="current-label">Active Environment:</span>
+        <span class="current-value" id="currentValue">None</span>
+      </div>
+
+      <div class="environments-list" id="environmentsList"></div>
+
+      <div class="footer">
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

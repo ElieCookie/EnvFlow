@@ -9,6 +9,7 @@
   "files": [
     "bin/",
     "src/",
+    "debug-header-extension/",
     "scripts/",
     "README.md",
     "LICENSE",
@@ -20,6 +21,7 @@
   },
   "scripts": {
     "start": "node bin/sun.js",
+    "sun": "node ./bin/sun.js",
     "test": "jest",
     "dev": "nodemon bin/sun.js",
     "postinstall": "node scripts/postinstall.js"
@@ -34,7 +36,8 @@
   "author": "EnvFlow",
   "license": "MIT",
   "dependencies": {
-    "commander": "^11.1.0"
+    "commander": "^11.1.0",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
