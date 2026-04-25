@@ -8,39 +8,14 @@ const {
 } = require("../utils/tools");
 const fs = require("fs").promises;
 const path = require("path");
-const os = require("os");
 const { execSync } = require("child_process");
 const paths = require("../paths");
+const { readSunrcCandidates } = require("../utils/sunrc");
 
 // const DIRS = {
 //   workspace: () => path.join(os.homedir(), 'envflow'),
 //   ephemeral: () => path.join(os.homedir(), '.envflow-ephemeral')
 // };
-
-function loadYamlIfPresent(text) {
-  try {
-    return require("js-yaml").load(text);
-  } catch (e) {
-    throw new Error(`Invalid YAML: ${e.message}`);
-  }
-}
-
-async function readSunrcCandidates() {
-  const candidates = [
-    path.join(process.cwd(), ".sunrc"),
-    path.join(paths.REPO_ROOT, ".sunrc"),
-    path.join(os.homedir(), "envflow", "sun-cli", ".sunrc"),
-  ];
-  for (const p of candidates) {
-    try {
-      const raw = await fs.readFile(p, "utf8");
-      return { path: p, config: loadYamlIfPresent(raw) };
-    } catch {
-      /* try next */
-    }
-  }
-  return null;
-}
 
 function cloneUrl(org, repoName) {
   const o = org || process.env.ENVFLOW_GITHUB_ORG;

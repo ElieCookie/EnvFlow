@@ -1,9 +1,9 @@
 # ☀️ Sun CLI (EnvFlow)
 
-Generic platform CLI for EnvFlow: **rise** (setup) and **doctor** (checks). currently targets **minikube** and a **helm-charts** directory inside this repo (no AWS SSO in the default path).
+Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls`). It currently targets **minikube** and a **helm-charts** directory inside this repo (no AWS SSO in the default path).
 
 The **Chrome “debug header” extension** lives at **`debug-header-extension/`**. It is **not** a `sun` subcommand; load it unpacked from `chrome://extensions`, as in that folder’s README.
-Update client domain in the permited hosts in the debug header manifest.
+Update client domains in the permitted hosts list in `debug-header-extension/manifest.json`.
 
 ## Run from this repository (recommended for development)
 
@@ -59,6 +59,31 @@ Checks system health:
 4. `sun doctor` — verifies tools, minikube/kubectl reachability, and the helm layout.
 
 Optional clones: copy `.sunrc.example` to `.sunrc`, set `org:` and `repo` fields, then re-run `sun rise`. Use `ENVFLOW_GITHUB_ORG` or `ENVFLOW_GIT_CLONE_HTTPS=1` if you prefer HTTPS clones.
+
+## Contexts
+
+Create context files from `.sunrc`:
+
+```bash
+sun ctx create
+```
+
+Non-interactive example:
+
+```bash
+sun ctx create --name dev-a --yes
+```
+
+This writes:
+
+- `~/.envflow-ephemeral/devspace-<env>.yaml`
+- `~/.envflow-ephemeral/<env>.yaml`
+
+List saved contexts:
+
+```bash
+sun ctx ls
+```
 
 ## AWS / EKS (later)
 
