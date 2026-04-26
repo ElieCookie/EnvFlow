@@ -5,6 +5,7 @@ const colors = require("../src/utils/colors");
 
 const doctorHandler = require("../src/commands/doctor");
 const { riseHandler } = require("../src/commands/rise");
+const ctxCommand = require("../src/commands/ctx");
 
 const program = new Command();
 
@@ -33,6 +34,8 @@ program
   )
   .action(doctorHandler);
 
+program.addCommand(ctxCommand);
+
 program.configureHelp({
   sortSubcommands: true,
   subcommandTerm: (cmd) => cmd.name() + " " + cmd.usage(),
@@ -50,6 +53,10 @@ program.on("--help", () => {
   console.log(
     "  $ sun doctor                   # Minikube + kubectl + layout - checks system health",
   );
+  console.log(
+    "  $ sun ctx create               # Create a new context from .sunrc",
+  );
+  console.log("  $ sun ctx ls                   # List saved contexts");
   console.log("");
   console.log(
     "For more information, visit: https://github.com/ElieCookie/EnvFlow",
