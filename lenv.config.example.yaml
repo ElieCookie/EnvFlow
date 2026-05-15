@@ -1,0 +1,59 @@
+# lenv-cli example config (minikube-based local dev)
+# Copy to one of:
+#   lenv.config.yaml   (preferred)
+#   lenv.config.yml
+#   .lenvrc.yaml
+# Loader picks first match in project cwd.
+# For dynamic values use lenv.config.js instead (module.exports = {...}).
+#
+# This example targets minikube: full local k8s, no cloud account required.
+# Same config shape works against EKS / GKE / AKS — only `kube.name` changes.
+
+# ---------------------------------------------------------------------------
+# tools[]
+# Each entry = a binary lenv expects on PATH.
+#
+# Fields:
+#   name       (required)  binary name. Used for PATH lookup if no `check`.
+#   check      (optional)  shell command. Exit 0 = tool present.
+#                          Default: `command -v <name>`.
+#   install    (optional)  shell command run by `lenv rise` when missing.
+#   optional   (optional)  bool. true = doctor reports SKIP not MISSING.
+#                          rise skips if no `install`.
+# ---------------------------------------------------------------------------
+tools:
+  - name: git
+
+  - name: kubectl
+    install: brew install kubectl
+
+  - name: minikube
+    check: minikube version --short
+    install: brew install minikube
+
+  - name: helm
+    check: helm version --short
+    install: brew install helm
+
+  - name: docker
+    # docker required as minikube driver on macOS by default
+    install: brew install --cask docker
+
+# ---------------------------------------------------------------------------
+# kube{}  (optional — omit entire block to skip kubectl integration)
+# Applied by `lenv rise` after tool installs.
+#
+# For minikube:
+#   1. `minikube start` (creates context named `minikube`)
+#   2. `lenv rise` switches to it + sets namespace
+#
+# Fields:
+#   name       kubectl context to switch to. Must already exist locally.
+#                (`kubectl config use-context <name>`)
+#                List yours with: `kubectl config get-contexts`
+#   namespace  default namespace to set on current context.
+#                (`kubectl config set-context --current --namespace=<ns>`)
+# ---------------------------------------------------------------------------
+kube:
+  name: minikube
+  namespace: default
