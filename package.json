@@ -22,7 +22,9 @@
   "scripts": {
     "start": "node bin/sun.js",
     "sun": "node ./bin/sun.js",
-    "test": "jest",
+    "test": "jest tests/unit tests/integration",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
     "dev": "nodemon bin/sun.js",
     "postinstall": "node scripts/postinstall.js"
   },

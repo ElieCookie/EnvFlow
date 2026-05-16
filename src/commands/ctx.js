@@ -2,6 +2,7 @@ const { Command } = require("commander");
 
 const listHandler = require("./ctx/list");
 const createHandler = require("./ctx/create");
+const deleteHandler = require("./ctx/delete");
 
 const ctxCommand = new Command("ctx").description(
   "🗂️  Manage environment contexts",
@@ -22,5 +23,13 @@ ctxCommand
   .option("--no-deploy", "write config only; skip devspace dev")
   .option("-y, --yes", "non-interactive; watch all deployed services")
   .action(createHandler);
+
+ctxCommand
+  .command("delete")
+  .description("Delete an environment context")
+  .option("-n, --name <name>", "environment name")
+  .option("-c, --cluster <name>", "kubectl context to target (default minikube)")
+  .option("-y, --yes", "skip confirmation prompt")
+  .action(deleteHandler);
 
 module.exports = ctxCommand;

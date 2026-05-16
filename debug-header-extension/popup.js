@@ -1,21 +1,23 @@
 let environments = [];
 let activeEnvironment = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadEnvironments();
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", () => {
+    loadEnvironments();
 
-  document
-    .getElementById("addEnvironment")
-    .addEventListener("click", addEnvironment);
+    document
+      .getElementById("addEnvironment")
+      .addEventListener("click", addEnvironment);
 
-  document
-    .getElementById("environmentName")
-    .addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        addEnvironment();
-      }
-    });
-});
+    document
+      .getElementById("environmentName")
+      .addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          addEnvironment();
+        }
+      });
+  });
+}
 
 function loadEnvironments() {
   chrome.storage.sync.get(["environments", "activeEnvironment"], (result) => {
@@ -86,16 +88,10 @@ function clearActiveEnvironment() {
 }
 
 function saveEnvironments() {
-  const activeEnv = environments.find((env) => env.id === activeEnvironment);
-  const debugHeader = activeEnv
-    ? [
-        {
-          name: "X-Debug",
-          value: activeEnv.name,
-          enabled: true,
-        },
-      ]
-    : [];
+  const debugHeader = buildDebugHeadersForActiveEnvironment(
+    environments,
+    activeEnvironment,
+  );
 
   chrome.storage.sync.set(
     {
@@ -196,4 +192,21 @@ function escapeHtml(text) {
     "'": "&#039;",
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+function buildDebugHeadersForActiveEnvironment(environments, activeEnvironment) {
+  const activeEnv = environments.find((env) => env.id === activeEnvironment);
+  return activeEnv
+    ? [
+        {
+          name: "X-Debug",
+          value: activeEnv.name,
+          enabled: true,
+        },
+      ]
+    : [];
+}
+
+if (typeof module !== "undefined") {
+  module.exports = { buildDebugHeadersForActiveEnvironment, escapeHtml };
 }

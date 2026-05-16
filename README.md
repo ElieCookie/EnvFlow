@@ -1,8 +1,6 @@
 # ☀️ Sun CLI (EnvFlow)
 
-Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls`). Targets **minikube** by default. AWS/EKS path lives behind `--with-aws` for later.
-
-The **Chrome "debug header" extension** lives at **`debug-header-extension/`**. It is **not** a `sun` subcommand; load it unpacked from `chrome://extensions`, as in that folder's README. Update client domains in the permitted hosts list in `debug-header-extension/manifest.json`.
+Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls` / `delete`). Targets **minikube** by default and can target any Kubernetes context configured in kubeconfig.
 
 ## Quick start (minikube)
 
@@ -41,7 +39,7 @@ sun ctx create
 
 Initial setup:
 
-- Installs required tools via Homebrew (DevSpace, kubectl, minikube, optionally AWS CLI with `--with-aws`).
+- Checks required tools and installs missing supported tools when possible: kubectl and minikube via Homebrew, DevSpace via its release binary, and AWS CLI via Homebrew when `--with-aws` is used.
 - Creates `~/envflow` (clone target) and `~/.envflow-ephemeral` (generated configs + chart cache).
 - Optionally clones service repos listed in `.sunrc` when `org:` (or `ENVFLOW_GITHUB_ORG`) is set.
 
@@ -56,6 +54,7 @@ Reads `.sunrc`, writes `~/.envflow-ephemeral/devspace-<env>.yaml`, then runs `de
 ```bash
 sun ctx create                           # interactive
 sun ctx create --name dev-a --yes        # non-interactive, watch all services
+sun ctx create --name dev-a --services api,web --watch api
 sun ctx create --name dev-a --no-deploy  # write config, skip devspace dev
 sun ctx create --cluster minikube --yes  # target an explicit kubectl context
 ```
@@ -67,6 +66,16 @@ Outputs:
 ### `sun ctx ls`
 
 Lists saved contexts.
+
+### `sun ctx delete`
+
+Deletes a saved context, removes its `devspace-<env>` namespace, and removes local generated context files.
+
+```bash
+sun ctx delete                    # interactive
+sun ctx delete --name dev-a --yes # non-interactive
+sun ctx delete --cluster minikube # target an explicit kubectl context
+```
 
 ## `.sunrc` shape
 
@@ -117,13 +126,16 @@ Git charts are shallow-cloned into `~/.envflow-ephemeral/chart-cache/<sha>/` and
 sun rise --with-aws
 sun doctor --with-aws
 sun ctx create --cluster my-eks-dev --yes
+sun ctx delete --cluster my-eks-dev
 ```
 
-`rise` does **not** run `aws sso login`; it only ensures the AWS CLI is present when you pass `--with-aws`. `ctx create --cluster <name>` targets any kubectl context — same flow against minikube, EKS, GKE.
+`--cluster <name>` targets the active kubectl context by name. The same context workflow works with minikube, EKS, GKE, or any Kubernetes cluster configured in kubeconfig.
 
 ## Browser extension (`debug-header-extension`)
 
-See **`debug-header-extension/README.md`**. From Node, the path helper is **`require('./src/browser-extension/paths').debugHeaderExtensionDir()`** (for tooling; the CLI does not install the extension).
+The Chrome debug header extension lives in `debug-header-extension/`. It is not a `sun` subcommand; load it unpacked from `chrome://extensions`, as described in `debug-header-extension/README.md`.
+
+From Node, the path helper is `require('./src/browser-extension/paths').debugHeaderExtensionDir()` for tooling.
 
 ## Install from npm (optional)
 

@@ -1,21 +1,32 @@
 let debugHeaders = [];
 
-chrome.storage.sync.get(["debugHeaders"], (result) => {
-  if (result.debugHeaders) {
-    debugHeaders = result.debugHeaders;
-    updateRules();
-  }
-});
+if (typeof chrome !== "undefined") {
+  chrome.storage.sync.get(["debugHeaders"], (result) => {
+    if (result.debugHeaders) {
+      debugHeaders = result.debugHeaders;
+      updateRules();
+    }
+  });
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes.debugHeaders) {
-    debugHeaders = changes.debugHeaders.newValue || [];
-    updateRules();
-  }
-});
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "sync" && changes.debugHeaders) {
+      debugHeaders = changes.debugHeaders.newValue || [];
+      updateRules();
+    }
+  });
+}
 
 function updateRules() {
-  const rules = debugHeaders
+  const rules = buildDebugHeaderRules(debugHeaders);
+
+  chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: Array.from({ length: 100 }, (_, i) => i + 1),
+    addRules: rules,
+  });
+}
+
+function buildDebugHeaderRules(headers) {
+  return headers
     .filter((header) => header.enabled && header.name && header.value)
     .map((header, index) => ({
       id: index + 1,
@@ -51,9 +62,8 @@ function updateRules() {
         ],
       },
     }));
+}
 
-  chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: Array.from({ length: 100 }, (_, i) => i + 1),
-    addRules: rules,
-  });
+if (typeof module !== "undefined") {
+  module.exports = { buildDebugHeaderRules };
 }

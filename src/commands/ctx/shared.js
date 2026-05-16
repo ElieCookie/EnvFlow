@@ -2,6 +2,44 @@ const path = require("path");
 const fs = require("fs");
 const paths = require("../../paths");
 const { resolveChart } = require("../../utils/chart-resolver");
+const { execSync } = require("child_process");
+
+function currentKubectlContext() {
+  try {
+    return execSync("kubectl config current-context", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
+function ensureClusterContext({ requestedCluster, currentContext } = {}) {
+  const current =
+    currentContext === undefined ? currentKubectlContext() : currentContext;
+  if (!current) {
+    throw new Error(
+      "kubectl has no current context. Run `minikube start` or `kubectl config use-context <name>`.",
+    );
+  }
+
+  const expected = requestedCluster || "minikube";
+  if (current === expected) return current;
+
+  if (!requestedCluster) {
+    throw new Error(
+      `Current kubectl context is "${current}", expected "minikube". ` +
+        `Run \`minikube start\` first, or pass --cluster ${current} to target this cluster explicitly.`,
+    );
+  }
+
+  throw new Error(
+    `Current kubectl context is "${current}", but --cluster=${requestedCluster} was requested. ` +
+      `Switch context first: \`kubectl config use-context ${requestedCluster}\`.`,
+  );
+}
 
 function resolveRepoPath(service, serviceName, sunrcDir) {
   if (service.repoPath) {
@@ -123,6 +161,8 @@ function buildDevspaceConfig({
 }
 
 module.exports = {
+  currentKubectlContext,
+  ensureClusterContext,
   parseCsvList,
   sanitizeEnvName,
   splitHost,

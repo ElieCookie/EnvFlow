@@ -2,29 +2,21 @@ const fs = require("fs").promises;
 const path = require("path");
 const yaml = require("js-yaml");
 const inquirer = require("inquirer");
-const { spawn, execSync } = require("child_process");
+const { spawn } = require("child_process");
 
 const ui = require("../../utils/ui");
 const colors = require("../../utils/colors");
 const paths = require("../../paths");
 const { readSunrcCandidates } = require("../../utils/sunrc");
 const {
-  parseCsvList,
+  ensureClusterContext,
   sanitizeEnvName,
   buildDevspaceConfig,
 } = require("./shared");
-
-function currentKubectlContext() {
-  try {
-    return execSync("kubectl config current-context", {
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .toString()
-      .trim();
-  } catch {
-    return null;
-  }
-}
+const {
+  resolveDeployedServiceNames,
+  resolveDefaultWatchedServices,
+} = require("./create-options");
 
 async function promptMissingInputs({ envName, watchedServices, serviceNames }) {
   let finalEnvName = envName;
@@ -69,30 +61,6 @@ async function promptMissingInputs({ envName, watchedServices, serviceNames }) {
   };
 }
 
-function ensureClusterContext({ requestedCluster }) {
-  const current = currentKubectlContext();
-  if (!current) {
-    throw new Error(
-      "kubectl has no current context. Run `minikube start` or `kubectl config use-context <name>`.",
-    );
-  }
-
-  const expected = requestedCluster || "minikube";
-  if (current === expected) return current;
-
-  if (!requestedCluster) {
-    throw new Error(
-      `Current kubectl context is "${current}", expected "minikube". ` +
-        `Run \`minikube start\` first, or pass --cluster ${current} to target this cluster explicitly.`,
-    );
-  }
-
-  throw new Error(
-    `Current kubectl context is "${current}", but --cluster=${requestedCluster} was requested. ` +
-      `Switch context first: \`kubectl config use-context ${requestedCluster}\`.`,
-  );
-}
-
 function spawnDevspaceDev({ configPath, namespace }) {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -130,13 +98,10 @@ async function createHandler(options = {}) {
     process.exit(1);
   }
 
-  const selectedServices = parseCsvList(options.services);
-  const watchedFromOpt = parseCsvList(options.watch);
-
-  const deployedServiceNames =
-    selectedServices.length > 0
-      ? serviceNames.filter((name) => selectedServices.includes(name))
-      : serviceNames;
+  const deployedServiceNames = resolveDeployedServiceNames({
+    serviceNames,
+    servicesOption: options.services,
+  });
 
   if (deployedServiceNames.length === 0) {
     console.log(
@@ -145,12 +110,11 @@ async function createHandler(options = {}) {
     process.exit(1);
   }
 
-  const defaultWatch =
-    watchedFromOpt.length > 0
-      ? deployedServiceNames.filter((name) => watchedFromOpt.includes(name))
-      : options.yes
-        ? deployedServiceNames
-        : [];
+  const defaultWatch = resolveDefaultWatchedServices({
+    deployedServiceNames,
+    watchOption: options.watch,
+    yes: options.yes,
+  });
 
   const { envName, watchedServices } = await promptMissingInputs({
     envName: options.name,

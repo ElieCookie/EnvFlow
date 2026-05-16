@@ -56,6 +56,9 @@ program.on("--help", () => {
   console.log(
     "  $ sun ctx create               # Create a new context from .sunrc",
   );
+  console.log(
+    "  $ sun ctx delete               # Delete a saved context and namespace",
+  );
   console.log("  $ sun ctx ls                   # List saved contexts");
   console.log("");
   console.log(
