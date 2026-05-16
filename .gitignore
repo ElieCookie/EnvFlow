@@ -1,12 +1,6 @@
-dist
 node_modules
-bash_scripts
-lenv.config.js
-jobs
-modules
-functions
-state
-docker-compose.yaml
-*.log
-.DS_Store
-.idea
+.claude/
+.bmad/
+*.txt
+.devspace/
+.env.devspace

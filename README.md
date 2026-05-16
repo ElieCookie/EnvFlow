@@ -1,217 +1,146 @@
-# lenv-cli
+# ☀️ Sun CLI (EnvFlow)
 
-Generic CLI for dev environment orchestration. Config-driven tool checks, installs, and kubectl context management. No domain assumptions — works for any org or project.
+Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls`). It currently targets **minikube** and a **helm-charts** directory inside this repo (no AWS SSO in the default path).
 
-## Install
+The **Chrome “debug header” extension** lives at **`debug-header-extension/`**. It is **not** a `sun` subcommand; load it unpacked from `chrome://extensions`, as in that folder’s README.
+Update client domains in the permitted hosts list in `debug-header-extension/manifest.json`.
 
-```bash
-npm install -g lenv-cli
-# or
-yarn global add lenv-cli
-```
-
-## Quick start (minikube — local k8s, no cloud)
-
-1. Drop `lenv.config.yaml` in your project root:
-
-```yaml
-tools:
-  - name: git
-  - name: kubectl
-    install: brew install kubectl
-  - name: minikube
-    check: minikube version --short
-    install: brew install minikube
-  - name: helm
-    install: brew install helm
-  - name: docker
-    install: brew install --cask docker
-
-kube:
-  name: minikube
-  namespace: default
-```
-
-2. Bring up local cluster + tools:
+## Run from this repository (recommended for development)
 
 ```bash
-lenv doctor                 # check tools present
-lenv rise                   # install missing
-minikube start              # boot local k8s (one-time per session)
-lenv rise                   # re-run: switches kubectl ctx to minikube
-kubectl get nodes           # verify
+cd /path/to/EnvFlow
+npm install
+node bin/sun.js rise
+node bin/sun.js doctor
 ```
 
-Same config swaps to EKS/GKE/AKS by changing `kube.name` to your cluster's kubectl context — no other code change.
+Same without a global `sun` install:
+
+```bash
+npm run sun -- rise
+npm run sun -- doctor
+```
+
+Or link the binary (then `sun` is on your PATH):
+
+```bash
+cd /path/to/EnvFlow
+npm install
+npm link
+sun rise
+sun doctor
+```
 
 ## Commands
 
-| Command | Purpose | Side effects |
-|---|---|---|
-| `lenv help` | Print command list | none |
-| `lenv doctor` | Verify tools from config exist | read-only |
-| `lenv rise` | Install missing tools, apply kube context | runs install shell commands, switches `kubectl` context |
+### `sun rise`
 
-Exit codes: `0` = OK, `1` = missing config / required tool missing / install failed / unknown command.
+Complete environment setup:
 
-## Config
+- Installs required tools (DevSpace, AWS CLI, kubectl) via Homebrew
+- Configures AWS credentials with SSO login (later)
+- Sets up kubectl context for EKS cluster (later)
+- Clones all service repositories from `.sunrc`
+- Creates directory structure
 
-Loaded from first existing file in cwd:
+### `sun doctor`
 
-1. `lenv.config.js`
-2. `lenv.config.yaml`
-3. `lenv.config.yml`
-4. `.lenvrc.yaml`
+Checks system health:
 
-### `tools[]`
+- Verifies required tools are installed
+- Validates AWS credentials and Kubernetes context (later)
+- Checks directory structure and helm-charts in repo
 
-| Field | Type | Default | Purpose |
-|---|---|---|---|
-| `name` | string | required | Binary name. Used as PATH check if `check` omitted. |
-| `check` | string | `command -v <name>` | Shell command. Exit 0 = tool present. |
-| `install` | string | — | Shell command run by `rise` if tool missing. |
-| `optional` | bool | `false` | `doctor` reports SKIP not MISSING; `rise` skips when no `install`. |
+## Minikube flow (no AWS login)
 
-### `kube{}`
+1. Install [minikube](https://minikube.sigs.k8s.io/docs/start/), kubectl, DevSpace, and Git (Homebrew is fine on macOS).
+2. `minikube start`
+3. From the EnvFlow repo: `sun rise` — installs/checks tools, creates `~/envflow` and `~/.envflow-ephemeral`, symlinks **`./helm-charts` → `~/.envflow-ephemeral/helm-charts`**, optionally clones repos from `.sunrc`.
+4. `sun doctor` — verifies tools, minikube/kubectl reachability, and the helm layout.
 
-| Field | Applied by `rise` |
-|---|---|
-| `name` | `kubectl config use-context <name>` |
-| `namespace` | `kubectl config set-context --current --namespace=<ns>` |
+Optional clones: copy `.sunrc.example` to `.sunrc`, set `org:` and `repo` fields, then re-run `sun rise`. Use `ENVFLOW_GITHUB_ORG` or `ENVFLOW_GIT_CLONE_HTTPS=1` if you prefer HTTPS clones.
 
-## Examples
+## Contexts
 
-### Minimal check
+Create context files from `.sunrc`:
+
+```bash
+sun ctx create
+```
+
+Non-interactive example:
+
+```bash
+sun ctx create --name dev-a --yes
+```
+
+This writes:
+
+- `~/.envflow-ephemeral/devspace-<env>.yaml`
+- `~/.envflow-ephemeral/<env>.yaml`
+
+List saved contexts:
+
+```bash
+sun ctx ls
+```
+
+## AWS / EKS (later)
+
+```bash
+sun rise --with-aws
+sun doctor --with-aws
+```
+
+`rise` does **not** run `aws sso login`; it only ensures the AWS CLI is present when you pass `--with-aws`.
+
+## Helm charts
+
+Charts live under **`helm-charts/` in this repo`**. After `sun rise`, DevSpace and other tooling can keep using `~/.envflow-ephemeral/helm-charts` as a stable path while you edit charts in the git tree.
+
+## Browser extension (`debug-header-extension`)
+
+See **`debug-header-extension/README.md`**. From Node, the path helper is **`require('./src/browser-extension/paths').debugHeaderExtensionDir()`** (for tooling; the CLI does not install the extension).
+
+## Install from GitHub Packages (optional)
+
+```bash
+npm config set @envflow:registry https://npm.pkg.github.com
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
+npm install -g @envflow/sun-cli
+sun rise
+```
+
+Global install runs `postinstall`, which clones this repo to `~/envflow/sun-cli` when missing; for active development, prefer working directly in your EnvFlow clone as above.
+
+## Configuration
+
+The `.sunrc` file defines your services. It is automatically available at `~/envflow/sun-cli/.sunrc` after installation.
 
 ```yaml
-tools:
-  - name: docker
-  - name: git
+services:
+  player-api:
+    envfile: .env.devspace
+    port: 8080
+    host: "api.dev.example.com"
+    repo: "player-backend"
+    command: "yarn start:dev"
+    chart: "player-api"
+    secret-name: "eks/development/external-secret"
 ```
 
-```bash
-$ lenv doctor
-Config: ./lenv.config.yaml
-OK      docker         found in PATH
-OK      git            found in PATH
+## Architecture
 
-All required tools present
-```
+~/envflow/ # Cloned repositories
+├── player-backend/
+├── player-frontend/
+└── core/
 
-### Full setup with install + kube
-
-```yaml
-tools:
-  - name: kubectl
-    install: brew install kubectl
-  - name: helm
-    install: brew install helm
-  - name: aws
-    check: aws --version
-    install: brew install awscli
-
-kube:
-  name: dev-cluster
-  namespace: my-team
-```
-
-```bash
-$ lenv rise
-Config: ./lenv.config.yaml
-= kubectl already installed
-> installing helm: brew install helm
-+ helm installed
-= aws already installed
-> kubectl config use-context dev-cluster
-Switched to context "dev-cluster".
-> kubectl set namespace my-team
-Context "dev-cluster" modified.
-
-installed: 1, failed: 0
-```
-
-### JS config (dynamic)
-
-```js
-// lenv.config.js
-const fromEnv = process.env.K8S_CTX || 'docker-desktop';
-
-module.exports = {
-  tools: [
-    { name: 'kubectl', install: 'brew install kubectl' },
-  ],
-  kube: { name: fromEnv, namespace: 'dev' },
-};
-```
-
-## Project structure
-
-```
-lenv-cli/
-├── bin/lenv.js              # entry, shebang
-├── src/
-│   ├── commands/
-│   │   ├── index.js         # registry + help
-│   │   ├── doctor.js
-│   │   └── rise.js
-│   └── utils/
-│       ├── exec.js          # run / which / spawnInherit
-│       └── cliConfig.js     # config loader
-└── package.json
-```
-
-Plain JavaScript. No build step. Runs on Node 14+.
-
-## Local development
-
-```bash
-git clone <repo>
-cd lenv-cli
-yarn install            # installs only `yaml` runtime dep + semantic-release devDeps
-
-# run from source
-node bin/lenv.js doctor
-
-# or link globally
-npm link
-lenv doctor
-```
-
-Edit `src/**`, rerun. No build, no watch, no compile.
-
-## Adding a command
-
-1. Create `src/commands/<name>.js`:
-
-```js
-const handler = async args => {
-  // do work
-  return 0; // exit code
-};
-
-const myCommand = {
-  name: 'mycommand',
-  description: 'What it does',
-  handler,
-};
-
-module.exports = { myCommand };
-```
-
-2. Register in `src/commands/index.js`:
-
-```js
-const { myCommand } = require('./mycommand');
-
-const commands = {
-  doctor: doctorCommand,
-  rise: riseCommand,
-  mycommand: myCommand,
-};
-```
-
-That's it. `lenv mycommand` is live.
+~/.envflow-ephemeral/ # DevSpace configs
+├── helm-charts/ # Service route charts
+├── devspace-[env].yaml # Environment config
+└── [env].yaml # Helm values
 
 ## License
 
-MIT
+MIT © EnvFlow
