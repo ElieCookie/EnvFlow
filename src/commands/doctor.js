@@ -1,4 +1,3 @@
-const path = require("path");
 const fs = require("fs").promises;
 const { exec } = require("child_process");
 const { promisify } = require("util");
@@ -11,12 +10,6 @@ const {
   checkToolExists,
 } = require("../utils/tools");
 const paths = require("../paths");
-
-// const TOOL_CHECKS = [
-//   { name: 'DevSpace', bin: 'devspace', fix: 'brew install devspace' },
-//   { name: 'AWS CLI', bin: 'aws', fix: 'brew install awscli' },
-//   { name: 'kubectl', bin: 'kubectl', fix: 'brew install kubectl' }
-// ];
 
 async function loadDoctorMode(options) {
   if (options.withAws) return "aws";
@@ -125,8 +118,6 @@ async function doctorHandler(options) {
 
 async function checkDirectories(issues) {
   const ephemeralDir = paths.ephemeralDir();
-  const helmEphemeral = paths.helmChartsEphemeralPath();
-  const helmRepo = paths.helmChartsRepoPath();
 
   process.stdout.write(
     `  ${ui.status.pending()} Checking ~/.envflow-ephemeral`,
@@ -145,50 +136,6 @@ async function checkDirectories(issues) {
   process.stdout.write(
     `\r  ${ui.status.success()} ~/.envflow-ephemeral exists                   \n`,
   );
-
-  process.stdout.write(`  ${ui.status.pending()} Checking helm-charts`);
-  let helmOk = false;
-  try {
-    await fs.access(helmEphemeral);
-    helmOk = true;
-  } catch {
-    /* missing */
-  }
-  if (!helmOk) {
-    process.stdout.write(
-      `\r  ${ui.status.error()} helm-charts path missing                     \n`,
-    );
-    issues.push(
-      `Link charts: sun rise (symlinks repo helm-charts → ~/.envflow-ephemeral/helm-charts)`,
-    );
-    return;
-  }
-
-  try {
-    const st = await fs.lstat(helmEphemeral);
-    if (st.isSymbolicLink()) {
-      const target = await fs.readlink(helmEphemeral);
-      const resolved = path.resolve(path.dirname(helmEphemeral), target);
-      if (resolved === path.resolve(helmRepo)) {
-        process.stdout.write(
-          `\r  ${ui.status.success()} helm-charts → EnvFlow repo                \n`,
-        );
-      } else {
-        process.stdout.write(
-          `\r  ${ui.status.warning()} helm-charts symlink unexpected target    \n`,
-        );
-        issues.push(`Expected symlink to ${helmRepo}; run sun rise to fix`);
-      }
-    } else {
-      process.stdout.write(
-        `\r  ${ui.status.info()} helm-charts is a plain directory (OK)        \n`,
-      );
-    }
-  } catch {
-    process.stdout.write(
-      `\r  ${ui.status.warning()} could not stat helm-charts                  \n`,
-    );
-  }
 
   const files = await fs.readdir(ephemeralDir);
   const envFiles = files.filter(

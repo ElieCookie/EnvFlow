@@ -12,11 +12,6 @@ const { execSync } = require("child_process");
 const paths = require("../paths");
 const { readSunrcCandidates } = require("../utils/sunrc");
 
-// const DIRS = {
-//   workspace: () => path.join(os.homedir(), 'envflow'),
-//   ephemeral: () => path.join(os.homedir(), '.envflow-ephemeral')
-// };
-
 function cloneUrl(org, repoName) {
   const o = org || process.env.ENVFLOW_GITHUB_ORG;
   if (!o) return null;
@@ -24,55 +19,6 @@ function cloneUrl(org, repoName) {
     return `https://github.com/${o}/${repoName}.git`;
   }
   return `git@github.com:${o}/${repoName}.git`;
-}
-
-async function ensureHelmChartsLink() {
-  const source = paths.helmChartsRepoPath();
-  const dest = paths.helmChartsEphemeralPath();
-
-  let sourceOk = false;
-  try {
-    await fs.access(source);
-    sourceOk = true;
-  } catch {
-    /* missing */
-  }
-
-  if (!sourceOk) {
-    console.log(
-      `  ${ui.status.warning()} No helm-charts directory in EnvFlow repo (${source})`,
-    );
-    console.log(`  ${ui.status.info()} Creating empty ${dest}`);
-    await fs.mkdir(dest, { recursive: true });
-    return;
-  }
-
-  try {
-    const st = await fs.lstat(dest);
-    if (st.isSymbolicLink()) {
-      const target = await fs.readlink(dest);
-      const resolved = path.resolve(path.dirname(dest), target);
-      if (resolved === path.resolve(source)) {
-        console.log(
-          `  ${ui.status.success()} helm-charts symlink already points at repo`,
-        );
-        return;
-      }
-      await fs.unlink(dest);
-    } else if (st.isDirectory()) {
-      console.log(
-        `  ${ui.status.info()} ${dest} exists (not replacing). Remove it to use repo symlink.`,
-      );
-      return;
-    }
-  } catch {
-    /* dest missing */
-  }
-
-  await fs.symlink(path.resolve(source), dest);
-  console.log(
-    `  ${ui.status.success()} Linked ${dest} → ${path.resolve(source)}`,
-  );
 }
 
 async function cloneReposFromSunrc(workspace) {
@@ -188,10 +134,6 @@ async function riseHandler(options) {
     );
     return;
   }
-
-  console.log();
-  console.log(ui.subheader("Helm charts (local repo)"));
-  await ensureHelmChartsLink();
 
   await cloneReposFromSunrc(paths.workspaceDir());
 

@@ -1,12 +1,33 @@
-# Copy to .sunrc in this repo, ~/envflow, or a service repo.
-# org: GitHub org for git@github.com:org/repo.git clones during sun rise
+# Copy to .sunrc next to where you run `sun ctx create` (repo root, ~/envflow, or a service dir).
+# org: GitHub org used for git@github.com:org/<repo>.git clones during `sun rise`.
 
 org: your-github-org
 
 services:
   example-api:
-    envfile: .env.devspace
-    port: 8080
+    # Local code dir. Resolution order:
+    #   1. absolute path
+    #   2. path relative to .sunrc (if it exists on disk)
+    #   3. fallback: ~/envflow/<repo>
     repo: example-backend
+
+    port: 8080
+    image: node:20-alpine
+    workingDir: /usr/src/app
+    install: npm install
     command: npm run dev
-    chart: example-api
+
+    # Per-service chart (required). Three forms:
+    #   chart: ./helm/example-api                       # local path (relative to .sunrc)
+    #   chart: git@github.com:your-org/helm-charts.git  # whole git repo
+    #   chart:                                          # subpath + pinned ref
+    #     git: git@github.com:your-org/helm-charts.git
+    #     path: charts/example-api
+    #     ref: main
+    chart: ./helm/example-api
+
+    # Optional Helm values passed straight through to the chart.
+    values:
+      replicas: 1
+      env:
+        LOG_LEVEL: debug

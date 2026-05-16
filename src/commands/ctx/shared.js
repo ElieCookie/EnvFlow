@@ -1,5 +1,22 @@
 const path = require("path");
+const fs = require("fs");
 const paths = require("../../paths");
+const { resolveChart } = require("../../utils/chart-resolver");
+
+function resolveRepoPath(service, serviceName, sunrcDir) {
+  if (service.repoPath) {
+    return path.isAbsolute(service.repoPath)
+      ? service.repoPath
+      : path.resolve(sunrcDir, service.repoPath);
+  }
+  const repoName = service.repo || serviceName;
+  if (path.isAbsolute(repoName)) return repoName;
+
+  const sibling = path.resolve(sunrcDir, repoName);
+  if (fs.existsSync(sibling)) return sibling;
+
+  return path.join(paths.workspaceDir(), repoName);
+}
 
 function parseCsvList(value) {
   if (!value || typeof value !== "string") return [];
@@ -35,26 +52,17 @@ function splitHost(host) {
   };
 }
 
-function buildDevspaceConfig({ envName, servicesConfig, watchedServices }) {
-  const chartPath = path.join(
-    paths.helmChartsEphemeralPath(),
-    "charts",
-    "service-routes",
-  );
-
+function buildDevspaceConfig({
+  envName,
+  servicesConfig,
+  watchedServices,
+  defaults = {},
+  sunrcDir = process.cwd(),
+}) {
   const devspaceConfig = {
     version: "v2beta1",
     name: envName,
-    deployments: {
-      services: {
-        helm: {
-          chart: {
-            name: chartPath,
-          },
-          valuesFiles: [`./${envName}.yaml`],
-        },
-      },
-    },
+    deployments: {},
     dev: {},
     pipelines: {
       dev: {
@@ -64,21 +72,45 @@ function buildDevspaceConfig({ envName, servicesConfig, watchedServices }) {
   };
 
   for (const [serviceName, service] of Object.entries(servicesConfig)) {
-    const repoName = service.repo || serviceName;
-    const repoPath = path.join(paths.workspaceDir(), repoName);
+    const fullName = `${envName}-${serviceName}`;
+    const repoPath = resolveRepoPath(service, serviceName, sunrcDir);
+    const port = Number(service.port || defaults.port || 8080);
+    const image = service.image || defaults.image || "node:20-alpine";
+    const workingDir =
+      service.workingDir || defaults.workingDir || "/usr/src/app";
+    const installCmd =
+      service.install || defaults.install || "npm install";
+    const devCmd = service.command || defaults.command || "npm run dev";
     const isWatched = watchedServices.includes(serviceName);
 
-    const installCmd = service.install || "npm install";
-    const devCmd = service.command || "npm run dev";
+    const chartPath = resolveChart(service.chart, sunrcDir);
+
+    const helmValues = {
+      name: fullName,
+      port,
+      image,
+      workingDir,
+      ...(service.values || {}),
+    };
+
+    devspaceConfig.deployments[serviceName] = {
+      helm: {
+        chart: { name: chartPath },
+        values: helmValues,
+      },
+    };
 
     devspaceConfig.dev[serviceName] = {
-      labelSelector: {
-        service: `${envName}-${serviceName}`,
-      },
-      command: ["sh", "-c", `cd /usr/src/app && ${installCmd} && ${devCmd}`],
+      labelSelector: { service: fullName },
+      command: [
+        "sh",
+        "-c",
+        `cd ${workingDir} && ${installCmd} && ${devCmd}`,
+      ],
+      ports: [{ port: `${port}` }],
       sync: [
         {
-          path: `${repoPath}:/usr/src/app`,
+          path: `${repoPath}:${workingDir}`,
           excludePaths: [".git/", "node_modules/", "dist/", ".devspace/"],
           startContainer: true,
           ...(isWatched ? {} : { noWatch: true, initialSync: "preferLocal" }),
@@ -90,26 +122,9 @@ function buildDevspaceConfig({ envName, servicesConfig, watchedServices }) {
   return devspaceConfig;
 }
 
-function buildValuesConfig({ envName, servicesConfig }) {
-  return {
-    environmentName: envName,
-    imageBase: "node",
-    services: Object.entries(servicesConfig).map(([serviceName, service]) => {
-      const host = splitHost(service.host);
-      return {
-        name: `${envName}-${serviceName}`,
-        port: Number(service.port || 8080),
-        ...(host.hostname ? { hostname: host.hostname } : {}),
-        ...(host.pathPrefix ? { pathPrefix: host.pathPrefix } : {}),
-      };
-    }),
-  };
-}
-
 module.exports = {
   parseCsvList,
   sanitizeEnvName,
   splitHost,
   buildDevspaceConfig,
-  buildValuesConfig,
 };
