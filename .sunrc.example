@@ -17,7 +17,7 @@ services:
     install: npm install
     command: npm run dev
 
-    # Per-service chart. Three forms, all optional (default = bundled chart):
+    # Per-service chart (required). Three forms:
     #   chart: ./helm/example-api                       # local path (relative to .sunrc)
     #   chart: git@github.com:your-org/helm-charts.git  # whole git repo
     #   chart:                                          # subpath + pinned ref

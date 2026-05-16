@@ -1,6 +1,0 @@
-apiVersion: v2
-name: default-service
-description: Generic dev-time service chart used by sun ctx create when a service has no explicit `chart:` in .sunrc
-type: application
-version: 0.1.0
-appVersion: "0.1.0"

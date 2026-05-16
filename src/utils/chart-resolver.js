@@ -4,13 +4,6 @@ const crypto = require("crypto");
 const { execSync } = require("child_process");
 const paths = require("../paths");
 
-const DEFAULT_CHART = path.join(
-  __dirname,
-  "..",
-  "builtin-charts",
-  "default-service",
-);
-
 function chartCacheDir() {
   return path.join(paths.ephemeralDir(), "chart-cache");
 }
@@ -48,7 +41,11 @@ function isGitUrl(s) {
 }
 
 function resolveChart(chartSpec, cwd = process.cwd()) {
-  if (!chartSpec) return DEFAULT_CHART;
+  if (!chartSpec) {
+    throw new Error(
+      "Service is missing `chart:` in .sunrc. Set a local path, a git URL, or { git, path, ref }.",
+    );
+  }
 
   if (typeof chartSpec === "string") {
     if (isGitUrl(chartSpec)) {
@@ -70,4 +67,4 @@ function resolveChart(chartSpec, cwd = process.cwd()) {
   throw new Error(`Invalid chart spec: ${JSON.stringify(chartSpec)}`);
 }
 
-module.exports = { resolveChart, DEFAULT_CHART, chartCacheDir };
+module.exports = { resolveChart, chartCacheDir };

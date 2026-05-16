@@ -21,15 +21,24 @@ describe("ctx create integration", () => {
     fs.mkdirSync(tempHome, { recursive: true });
     fs.mkdirSync(tempProject, { recursive: true });
 
+    const chartDir = path.join(tempProject, "chart");
+    fs.mkdirSync(chartDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(chartDir, "Chart.yaml"),
+      "apiVersion: v2\nname: stub\nversion: 0.0.1\n",
+    );
+
     const sunrc = `services:
   api:
     repo: api-repo
     port: 8080
     command: npm run dev
+    chart: ./chart
   web:
     repo: web-repo
     port: 3000
     command: npm run start
+    chart: ./chart
 `;
     fs.writeFileSync(path.join(tempProject, ".sunrc"), sunrc);
 

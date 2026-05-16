@@ -109,7 +109,7 @@ chart:
   ref: main
 ```
 
-Git charts are shallow-cloned into `~/.envflow-ephemeral/chart-cache/<sha>/` and reused. When no `chart:` is set, sun falls back to its bundled default chart shipped at `src/builtin-charts/default-service/`.
+Git charts are shallow-cloned into `~/.envflow-ephemeral/chart-cache/<sha>/` and reused. `chart:` is **required** per service — there is no bundled default. Point it at a local path or a chart repo you control.
 
 ## AWS / EKS (later)
 
@@ -133,7 +133,7 @@ sun rise
 sun ctx create
 ```
 
-`npx @envflow/sun-cli ctx create` also works without a global install. The bundled default chart ships inside the package — no separate clone needed.
+`npx @envflow/sun-cli ctx create` also works without a global install. Each service in your `.sunrc` must declare its own `chart:`.
 
 ## Architecture
 
