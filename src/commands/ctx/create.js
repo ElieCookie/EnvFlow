@@ -2,6 +2,7 @@ const fs = require("fs").promises;
 const path = require("path");
 const yaml = require("js-yaml");
 const inquirer = require("inquirer");
+const { spawn, execSync } = require("child_process");
 
 const ui = require("../../utils/ui");
 const colors = require("../../utils/colors");
@@ -11,8 +12,19 @@ const {
   parseCsvList,
   sanitizeEnvName,
   buildDevspaceConfig,
-  buildValuesConfig,
 } = require("./shared");
+
+function currentKubectlContext() {
+  try {
+    return execSync("kubectl config current-context", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
+}
 
 async function promptMissingInputs({ envName, watchedServices, serviceNames }) {
   let finalEnvName = envName;
@@ -57,6 +69,45 @@ async function promptMissingInputs({ envName, watchedServices, serviceNames }) {
   };
 }
 
+function ensureClusterContext({ requestedCluster }) {
+  const current = currentKubectlContext();
+  if (!current) {
+    throw new Error(
+      "kubectl has no current context. Run `minikube start` or `kubectl config use-context <name>`.",
+    );
+  }
+
+  const expected = requestedCluster || "minikube";
+  if (current === expected) return current;
+
+  if (!requestedCluster) {
+    throw new Error(
+      `Current kubectl context is "${current}", expected "minikube". ` +
+        `Run \`minikube start\` first, or pass --cluster ${current} to target this cluster explicitly.`,
+    );
+  }
+
+  throw new Error(
+    `Current kubectl context is "${current}", but --cluster=${requestedCluster} was requested. ` +
+      `Switch context first: \`kubectl config use-context ${requestedCluster}\`.`,
+  );
+}
+
+function spawnDevspaceDev({ configPath, namespace }) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "devspace",
+      ["dev", "--config", configPath, "--namespace", namespace],
+      { stdio: "inherit" },
+    );
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0 || code === null) return resolve(0);
+      resolve(code);
+    });
+  });
+}
+
 async function createHandler(options = {}) {
   const fromSunrc = await readSunrcCandidates();
   if (!fromSunrc || !fromSunrc.config || !fromSunrc.config.services) {
@@ -70,7 +121,10 @@ async function createHandler(options = {}) {
     process.exit(1);
   }
 
+  const sunrcDir = path.dirname(fromSunrc.path);
+  const defaults = fromSunrc.config.defaults || {};
   const serviceNames = Object.keys(fromSunrc.config.services);
+
   if (serviceNames.length === 0) {
     console.log(`${ui.status.warning()} No services defined in .sunrc`);
     process.exit(1);
@@ -104,16 +158,32 @@ async function createHandler(options = {}) {
     serviceNames: deployedServiceNames,
   });
 
+  try {
+    ensureClusterContext({ requestedCluster: options.cluster });
+  } catch (err) {
+    console.log();
+    console.log(`${ui.status.error()} ${err.message}`);
+    process.exit(1);
+  }
+
   const servicesConfig = Object.fromEntries(
     deployedServiceNames.map((name) => [name, fromSunrc.config.services[name]]),
   );
 
-  const devspaceConfig = buildDevspaceConfig({
-    envName,
-    servicesConfig,
-    watchedServices,
-  });
-  const valuesConfig = buildValuesConfig({ envName, servicesConfig });
+  let devspaceConfig;
+  try {
+    devspaceConfig = buildDevspaceConfig({
+      envName,
+      servicesConfig,
+      watchedServices,
+      defaults,
+      sunrcDir,
+    });
+  } catch (err) {
+    console.log();
+    console.log(`${ui.status.error()} ${err.message}`);
+    process.exit(1);
+  }
 
   await fs.mkdir(paths.ephemeralDir(), { recursive: true });
 
@@ -121,15 +191,10 @@ async function createHandler(options = {}) {
     paths.ephemeralDir(),
     `devspace-${envName}.yaml`,
   );
-  const valuesFilePath = path.join(paths.ephemeralDir(), `${envName}.yaml`);
 
   await fs.writeFile(
     devspaceFilePath,
     yaml.dump(devspaceConfig, { indent: 2, lineWidth: -1, noRefs: true }),
-  );
-  await fs.writeFile(
-    valuesFilePath,
-    yaml.dump(valuesConfig, { indent: 2, lineWidth: -1, noRefs: true }),
   );
 
   console.log();
@@ -138,19 +203,46 @@ async function createHandler(options = {}) {
     `  ${ui.status.success()} Environment: ${colors.accent(envName)}`,
   );
   console.log(
+    `  ${ui.status.info()} Cluster: ${colors.accent(options.cluster || "minikube")}`,
+  );
+  console.log(
     `  ${ui.status.info()} Deployed services: ${deployedServiceNames.join(", ")}`,
   );
   console.log(
     `  ${ui.status.info()} Watched services: ${watchedServices.join(", ")}`,
   );
   console.log(`  ${ui.status.info()} Wrote: ${devspaceFilePath}`);
-  console.log(`  ${ui.status.info()} Wrote: ${valuesFilePath}`);
+
+  const namespace = `devspace-${envName}`;
+
+  if (options.deploy === false) {
+    console.log();
+    console.log(
+      colors.dim(
+        `Skipping deploy (--no-deploy). To run later:\n  devspace dev --config ${devspaceFilePath} --namespace ${namespace}`,
+      ),
+    );
+    return;
+  }
+
   console.log();
+  console.log(ui.subheader("Starting DevSpace"));
   console.log(
     colors.dim(
-      `Next: devspace dev --config ${devspaceFilePath} --namespace devspace-${envName}`,
+      `  devspace dev --config ${devspaceFilePath} --namespace ${namespace}`,
     ),
   );
+  console.log();
+
+  const code = await spawnDevspaceDev({
+    configPath: devspaceFilePath,
+    namespace,
+  });
+  if (code !== 0) {
+    console.log();
+    console.log(`${ui.status.error()} DevSpace exited with code ${code}`);
+    process.exit(code);
+  }
 }
 
 module.exports = createHandler;

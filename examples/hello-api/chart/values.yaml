@@ -1,0 +1,4 @@
+name: hello-api
+image: node:20-alpine
+port: 8080
+workingDir: /usr/src/app

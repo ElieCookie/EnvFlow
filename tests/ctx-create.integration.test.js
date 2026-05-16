@@ -14,7 +14,7 @@ describe("ctx create integration", () => {
     }
   });
 
-  test("creates devspace and values yaml through CLI command", () => {
+  test("writes devspace yaml through CLI command", () => {
     tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "envflow-ctx-create-"));
     const tempHome = path.join(tempRoot, "home");
     const tempProject = path.join(tempRoot, "project");
@@ -25,39 +25,51 @@ describe("ctx create integration", () => {
   api:
     repo: api-repo
     port: 8080
-    host: api.dev.example.com/v1
     command: npm run dev
   web:
     repo: web-repo
     port: 3000
-    host: web.dev.example.com
     command: npm run start
 `;
     fs.writeFileSync(path.join(tempProject, ".sunrc"), sunrc);
 
     const cliPath = path.join(__dirname, "..", "bin", "sun.js");
-    execFileSync(process.execPath, [cliPath, "ctx", "create", "--name", "dev-ci", "--yes"], {
-      cwd: tempProject,
-      env: { ...process.env, HOME: tempHome },
-      stdio: "pipe",
-      encoding: "utf8",
-    });
+    const fakeKubectl = path.join(tempRoot, "bin");
+    fs.mkdirSync(fakeKubectl, { recursive: true });
+    fs.writeFileSync(
+      path.join(fakeKubectl, "kubectl"),
+      "#!/bin/sh\necho minikube\n",
+      { mode: 0o755 },
+    );
+
+    execFileSync(
+      process.execPath,
+      [cliPath, "ctx", "create", "--name", "dev-ci", "--yes", "--no-deploy"],
+      {
+        cwd: tempProject,
+        env: {
+          ...process.env,
+          HOME: tempHome,
+          PATH: `${fakeKubectl}:${process.env.PATH}`,
+        },
+        stdio: "pipe",
+        encoding: "utf8",
+      },
+    );
 
     const ephemeral = path.join(tempHome, ".envflow-ephemeral");
     const devspacePath = path.join(ephemeral, "devspace-dev-ci.yaml");
-    const valuesPath = path.join(ephemeral, "dev-ci.yaml");
 
     expect(fs.existsSync(devspacePath)).toBe(true);
-    expect(fs.existsSync(valuesPath)).toBe(true);
 
     const devspace = yaml.load(fs.readFileSync(devspacePath, "utf8"));
-    const values = yaml.load(fs.readFileSync(valuesPath, "utf8"));
-
     expect(devspace.name).toBe("dev-ci");
     expect(Object.keys(devspace.dev || {}).sort()).toEqual(["api", "web"]);
-
-    expect(values.environmentName).toBe("dev-ci");
-    expect(values.services).toHaveLength(2);
-    expect(values.services.map((s) => s.name).sort()).toEqual(["dev-ci-api", "dev-ci-web"]);
+    expect(Object.keys(devspace.deployments || {}).sort()).toEqual([
+      "api",
+      "web",
+    ]);
+    expect(devspace.deployments.api.helm.values.name).toBe("dev-ci-api");
+    expect(devspace.deployments.api.helm.values.port).toBe(8080);
   });
 });

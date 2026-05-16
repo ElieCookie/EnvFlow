@@ -1,145 +1,148 @@
 # ☀️ Sun CLI (EnvFlow)
 
-Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls`). It currently targets **minikube** and a **helm-charts** directory inside this repo (no AWS SSO in the default path).
+Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls`). Targets **minikube** by default. AWS/EKS path lives behind `--with-aws` for later.
 
-The **Chrome “debug header” extension** lives at **`debug-header-extension/`**. It is **not** a `sun` subcommand; load it unpacked from `chrome://extensions`, as in that folder’s README.
-Update client domains in the permitted hosts list in `debug-header-extension/manifest.json`.
+The **Chrome "debug header" extension** lives at **`debug-header-extension/`**. It is **not** a `sun` subcommand; load it unpacked from `chrome://extensions`, as in that folder's README. Update client domains in the permitted hosts list in `debug-header-extension/manifest.json`.
 
-## Run from this repository (recommended for development)
+## Quick start (minikube)
+
+```bash
+minikube start
+cd examples/hello-api
+npx @envflow/sun-cli ctx create --name demo --yes
+# devspace attaches; localhost:8080 lights up
+curl http://localhost:8080
+```
+
+That's the whole loop: chart applied → pod up → file sync → dev command runs.
+
+## Run from a checkout
 
 ```bash
 cd /path/to/EnvFlow
 npm install
 node bin/sun.js rise
 node bin/sun.js doctor
+node bin/sun.js ctx create
 ```
 
-Same without a global `sun` install:
+Or link the binary so `sun` is on your PATH:
 
 ```bash
-npm run sun -- rise
-npm run sun -- doctor
-```
-
-Or link the binary (then `sun` is on your PATH):
-
-```bash
-cd /path/to/EnvFlow
-npm install
 npm link
 sun rise
 sun doctor
+sun ctx create
 ```
 
 ## Commands
 
 ### `sun rise`
 
-Complete environment setup:
+Initial setup:
 
-- Installs required tools (DevSpace, AWS CLI, kubectl) via Homebrew
-- Configures AWS credentials with SSO login (later)
-- Sets up kubectl context for EKS cluster (later)
-- Clones all service repositories from `.sunrc`
-- Creates directory structure
+- Installs required tools via Homebrew (DevSpace, kubectl, minikube, optionally AWS CLI with `--with-aws`).
+- Creates `~/envflow` (clone target) and `~/.envflow-ephemeral` (generated configs + chart cache).
+- Optionally clones service repos listed in `.sunrc` when `org:` (or `ENVFLOW_GITHUB_ORG`) is set.
 
 ### `sun doctor`
 
-Checks system health:
+Verifies tools, kubectl/minikube reachability, and the ephemeral dir layout. Lists existing contexts.
 
-- Verifies required tools are installed
-- Validates AWS credentials and Kubernetes context (later)
-- Checks directory structure and helm-charts in repo
+### `sun ctx create`
 
-## Minikube flow (no AWS login)
-
-1. Install [minikube](https://minikube.sigs.k8s.io/docs/start/), kubectl, DevSpace, and Git (Homebrew is fine on macOS).
-2. `minikube start`
-3. From the EnvFlow repo: `sun rise` — installs/checks tools, creates `~/envflow` and `~/.envflow-ephemeral`, symlinks **`./helm-charts` → `~/.envflow-ephemeral/helm-charts`**, optionally clones repos from `.sunrc`.
-4. `sun doctor` — verifies tools, minikube/kubectl reachability, and the helm layout.
-
-Optional clones: copy `.sunrc.example` to `.sunrc`, set `org:` and `repo` fields, then re-run `sun rise`. Use `ENVFLOW_GITHUB_ORG` or `ENVFLOW_GIT_CLONE_HTTPS=1` if you prefer HTTPS clones.
-
-## Contexts
-
-Create context files from `.sunrc`:
+Reads `.sunrc`, writes `~/.envflow-ephemeral/devspace-<env>.yaml`, then runs `devspace dev` against the chosen namespace. Per-service Helm chart support; see Chart spec below.
 
 ```bash
-sun ctx create
+sun ctx create                           # interactive
+sun ctx create --name dev-a --yes        # non-interactive, watch all services
+sun ctx create --name dev-a --no-deploy  # write config, skip devspace dev
+sun ctx create --cluster minikube --yes  # target an explicit kubectl context
 ```
 
-Non-interactive example:
-
-```bash
-sun ctx create --name dev-a --yes
-```
-
-This writes:
+Outputs:
 
 - `~/.envflow-ephemeral/devspace-<env>.yaml`
-- `~/.envflow-ephemeral/<env>.yaml`
 
-List saved contexts:
+### `sun ctx ls`
 
-```bash
-sun ctx ls
+Lists saved contexts.
+
+## `.sunrc` shape
+
+```yaml
+org: your-github-org   # optional, used by `sun rise` clones
+
+services:
+  example-api:
+    repo: example-backend     # local code dir (see resolution rules)
+    port: 8080
+    image: node:20-alpine
+    workingDir: /usr/src/app
+    install: npm install
+    command: npm run dev
+    chart: ./helm/example-api # per-service chart
+    values:
+      replicas: 1
+      env: { LOG_LEVEL: debug }
 ```
+
+### `repo` resolution
+
+1. Absolute path → used as-is.
+2. Path relative to the `.sunrc` directory → used if it exists on disk.
+3. Fallback: `~/envflow/<repo>` (what `sun rise` clones into).
+
+### Chart spec — three forms
+
+```yaml
+# 1. Local path (relative to .sunrc, or absolute)
+chart: ./helm/example-api
+
+# 2. Whole git repo as the chart
+chart: git@github.com:your-org/helm-charts.git
+
+# 3. Subpath inside a git repo, pinned to a ref
+chart:
+  git: git@github.com:your-org/helm-charts.git
+  path: charts/example-api
+  ref: main
+```
+
+Git charts are shallow-cloned into `~/.envflow-ephemeral/chart-cache/<sha>/` and reused. When no `chart:` is set, sun falls back to its bundled default chart shipped at `src/builtin-charts/default-service/`.
 
 ## AWS / EKS (later)
 
 ```bash
 sun rise --with-aws
 sun doctor --with-aws
+sun ctx create --cluster my-eks-dev --yes
 ```
 
-`rise` does **not** run `aws sso login`; it only ensures the AWS CLI is present when you pass `--with-aws`.
-
-## Helm charts
-
-Charts live under **`helm-charts/` in this repo`**. After `sun rise`, DevSpace and other tooling can keep using `~/.envflow-ephemeral/helm-charts` as a stable path while you edit charts in the git tree.
+`rise` does **not** run `aws sso login`; it only ensures the AWS CLI is present when you pass `--with-aws`. `ctx create --cluster <name>` targets any kubectl context — same flow against minikube, EKS, GKE.
 
 ## Browser extension (`debug-header-extension`)
 
 See **`debug-header-extension/README.md`**. From Node, the path helper is **`require('./src/browser-extension/paths').debugHeaderExtensionDir()`** (for tooling; the CLI does not install the extension).
 
-## Install from GitHub Packages (optional)
+## Install from npm (optional)
 
 ```bash
-npm config set @envflow:registry https://npm.pkg.github.com
-echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
 npm install -g @envflow/sun-cli
 sun rise
+sun ctx create
 ```
 
-Global install runs `postinstall`, which clones this repo to `~/envflow/sun-cli` when missing; for active development, prefer working directly in your EnvFlow clone as above.
-
-## Configuration
-
-The `.sunrc` file defines your services. It is automatically available at `~/envflow/sun-cli/.sunrc` after installation.
-
-```yaml
-services:
-  player-api:
-    envfile: .env.devspace
-    port: 8080
-    host: "api.dev.example.com"
-    repo: "player-backend"
-    command: "yarn start:dev"
-    chart: "player-api"
-    secret-name: "eks/development/external-secret"
-```
+`npx @envflow/sun-cli ctx create` also works without a global install. The bundled default chart ships inside the package — no separate clone needed.
 
 ## Architecture
 
-~/envflow/ # Cloned repositories
-├── player-backend/
-├── player-frontend/
-└── core/
-
-~/.envflow-ephemeral/ # DevSpace configs
-├── helm-charts/ # Service route charts
-├── devspace-[env].yaml # Environment config
-└── [env].yaml # Helm values
+```
+~/envflow/                 # cloned service repos (from .sunrc)
+~/.envflow-ephemeral/
+├── chart-cache/<sha>/     # shallow-cloned git charts
+└── devspace-<env>.yaml    # generated per ctx
+```
 
 ## License
 

@@ -1,0 +1,21 @@
+# Demo .sunrc for examples/hello-api.
+# Run from this directory:
+#   minikube start
+#   npx @envflow/sun-cli ctx create --name demo --yes
+# Or from a checkout:
+#   node ../../bin/sun.js ctx create --name demo --yes
+
+services:
+  hello-api:
+    # Local repo dir to sync into the pod (sibling of .sunrc).
+    repo: app
+    port: 8080
+    image: node:20-alpine
+    workingDir: /usr/src/app
+    command: node server.js
+    install: "true"     # no deps in this demo
+    # Per-service chart. Three forms supported:
+    #   chart: ./chart                     # local path (used here)
+    #   chart: git@github.com:org/charts.git           # whole git repo as chart
+    #   chart: { git: <url>, path: subdir, ref: main } # subpath in a git repo
+    chart: ./chart

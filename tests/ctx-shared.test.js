@@ -1,8 +1,9 @@
+const path = require("path");
 const {
   parseCsvList,
   sanitizeEnvName,
   splitHost,
-  buildValuesConfig,
+  buildDevspaceConfig,
 } = require("../src/commands/ctx/shared");
 
 describe("ctx shared helpers", () => {
@@ -22,20 +23,33 @@ describe("ctx shared helpers", () => {
     });
   });
 
-  test("buildValuesConfig maps service host and port", () => {
-    const values = buildValuesConfig({
+  test("buildDevspaceConfig wires deployments + dev blocks per service", () => {
+    const cfg = buildDevspaceConfig({
       envName: "dev1",
       servicesConfig: {
-        api: { port: 8080, host: "api.dev.example.com/v1" },
+        api: { port: 8080, command: "npm run dev" },
       },
+      watchedServices: ["api"],
     });
 
-    expect(values.environmentName).toBe("dev1");
-    expect(values.services[0]).toEqual({
-      name: "dev1-api",
-      port: 8080,
-      hostname: "api.dev.example.com",
-      pathPrefix: "/v1",
+    expect(cfg.name).toBe("dev1");
+    expect(cfg.deployments.api.helm.chart.name).toMatch(/default-service$/);
+    expect(cfg.deployments.api.helm.values.name).toBe("dev1-api");
+    expect(cfg.deployments.api.helm.values.port).toBe(8080);
+    expect(cfg.dev.api.ports[0].port).toBe("8080");
+    expect(cfg.dev.api.sync[0].path).toContain("/api");
+  });
+
+  test("buildDevspaceConfig uses chart path from .sunrc when set", () => {
+    const fakeChart = path.join(__dirname, "..", "src", "builtin-charts", "default-service");
+    const cfg = buildDevspaceConfig({
+      envName: "dev2",
+      servicesConfig: {
+        api: { port: 3000, chart: fakeChart },
+      },
+      watchedServices: [],
     });
+
+    expect(cfg.deployments.api.helm.chart.name).toBe(fakeChart);
   });
 });
