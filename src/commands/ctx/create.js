@@ -1,11 +1,11 @@
 const fs = require("fs").promises;
 const path = require("path");
 const yaml = require("js-yaml");
-const inquirer = require("inquirer");
 const { spawn } = require("child_process");
 
 const ui = require("../../utils/ui");
 const colors = require("../../utils/colors");
+const { prompt } = require("../../utils/prompt");
 const paths = require("../../paths");
 const { readSunrcCandidates } = require("../../utils/sunrc");
 const {
@@ -23,7 +23,7 @@ async function promptMissingInputs({ envName, watchedServices, serviceNames }) {
   let finalWatched = watchedServices;
 
   if (!finalWatched || finalWatched.length === 0) {
-    const answer = await inquirer.prompt([
+    const answer = await prompt([
       {
         type: "checkbox",
         name: "watched",
@@ -37,7 +37,7 @@ async function promptMissingInputs({ envName, watchedServices, serviceNames }) {
   }
 
   if (!finalEnvName) {
-    const answer = await inquirer.prompt([
+    const answer = await prompt([
       {
         type: "input",
         name: "envName",

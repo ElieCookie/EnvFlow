@@ -1,8 +1,8 @@
-const inquirer = require("inquirer");
 const { execFileSync } = require("child_process");
 
 const ui = require("../../utils/ui");
 const colors = require("../../utils/colors");
+const { prompt } = require("../../utils/prompt");
 const paths = require("../../paths");
 const { ensureClusterContext } = require("./shared");
 const { contextConfigPath, listContextNames } = require("./context-store");
@@ -74,7 +74,7 @@ async function resolveEnvName({ requestedName, envs }) {
     return resolveDeleteEnvName({ requestedName, envs });
   }
 
-  const answer = await inquirer.prompt([
+  const answer = await prompt([
     {
       type: "list",
       name: "envName",
@@ -88,7 +88,7 @@ async function resolveEnvName({ requestedName, envs }) {
 async function confirmDelete({ envName, skipPrompt }) {
   if (skipPrompt) return true;
 
-  const answer = await inquirer.prompt([
+  const answer = await prompt([
     {
       type: "confirm",
       name: "confirmed",
