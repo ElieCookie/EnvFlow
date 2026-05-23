@@ -1,0 +1,14 @@
+# Demo .sunrc for examples/go-api.
+# Run from this directory:
+#   minikube start
+#   npx @envflow/sun-cli ctx create --name demo --yes
+
+services:
+  go-api:
+    repo: app
+    port: 8080
+    image: golang:1.22-alpine
+    workingDir: /usr/src/app
+    install: go mod download
+    command: go run .
+    chart: ./chart
