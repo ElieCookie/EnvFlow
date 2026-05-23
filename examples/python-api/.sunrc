@@ -1,0 +1,14 @@
+# Demo .sunrc for examples/python-api.
+# Run from this directory:
+#   minikube start
+#   npx @envflow/sun-cli ctx create --name demo --yes
+
+services:
+  python-api:
+    repo: app
+    port: 8080
+    image: python:3.12-slim
+    workingDir: /usr/src/app
+    install: pip install -r requirements.txt
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 8080
+    chart: ./chart

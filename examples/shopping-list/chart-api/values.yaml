@@ -1,0 +1,4 @@
+name: shop-api
+image: node:20-alpine
+port: 3000
+workingDir: /usr/src/app

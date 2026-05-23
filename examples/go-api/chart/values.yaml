@@ -1,0 +1,4 @@
+name: go-api
+image: golang:1.22-alpine
+port: 8080
+workingDir: /usr/src/app

@@ -1,0 +1,34 @@
+# ShoppingList full-stack demo — NestJS API + Vue UI + MySQL.
+# Source: https://github.com/ElieCookie/ShoppingList
+#
+# Run from this directory:
+#   ./setup.sh
+#   minikube start
+#   npx @envflow/sun-cli ctx create --name shop --yes
+
+databases:
+  shop-db:
+    engine: mysql
+    env:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: shopping_db
+
+services:
+  api:
+    db: shop-db
+    repoPath: repos/ShoppingList/api
+    port: 3000
+    image: node:20-alpine
+    workingDir: /usr/src/app
+    install: npm install
+    command: npm run start:dev
+    chart: ./chart-api
+
+  ui:
+    repoPath: repos/ShoppingList/ui
+    port: 8080
+    image: node:20-alpine
+    workingDir: /usr/src/app
+    install: npm install
+    command: npm run dev -- --host 0.0.0.0
+    chart: ./chart-ui
