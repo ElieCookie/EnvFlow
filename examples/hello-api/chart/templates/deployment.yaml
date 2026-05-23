@@ -5,7 +5,7 @@ metadata:
   labels:
     service: {{ .Values.name }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicas | default 1 }}
   selector:
     matchLabels:
       service: {{ .Values.name }}
@@ -18,8 +18,19 @@ spec:
         - name: app
           image: {{ .Values.image | quote }}
           imagePullPolicy: IfNotPresent
+          {{- if .Values.workingDir }}
           workingDir: {{ .Values.workingDir | quote }}
+          {{- end }}
+          {{- if (default true .Values.idle) }}
           command: ["sh", "-c", "sleep infinity"]
+          {{- end }}
+          {{- if .Values.env }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.port }}
               name: http

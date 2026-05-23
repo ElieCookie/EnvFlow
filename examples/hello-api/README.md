@@ -33,6 +33,9 @@ curl http://localhost:8080
 Tear down:
 
 ```bash
-helm uninstall hello-api -n devspace-demo
-kubectl delete ns devspace-demo
+node ../../bin/sun.js ctx delete --name demo --yes
 ```
+
+## Live reload demo
+
+Edit `app/server.js` while `ctx create` is running. DevSpace syncs the file and restarts the dev command. Re-run `curl http://localhost:8080` to see the updated JSON.
