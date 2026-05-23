@@ -1,0 +1,6 @@
+apiVersion: v2
+name: shop-api
+description: NestJS API chart for ShoppingList demo
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

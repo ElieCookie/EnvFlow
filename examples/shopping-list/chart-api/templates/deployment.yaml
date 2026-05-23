@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    service: {{ .Values.name }}
+spec:
+  replicas: {{ .Values.replicas | default 1 }}
+  selector:
+    matchLabels:
+      service: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        service: {{ .Values.name }}
+    spec:
+      containers:
+        - name: app
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: IfNotPresent
+          {{- if .Values.workingDir }}
+          workingDir: {{ .Values.workingDir | quote }}
+          {{- end }}
+          {{- if (default true .Values.idle) }}
+          command: ["sh", "-c", "sleep infinity"]
+          {{- end }}
+          {{- if .Values.env }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.port }}
+              name: http
