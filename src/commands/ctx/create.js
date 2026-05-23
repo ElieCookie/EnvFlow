@@ -91,6 +91,8 @@ async function createHandler(options = {}) {
 
   const sunrcDir = path.dirname(fromSunrc.path);
   const defaults = fromSunrc.config.defaults || {};
+  const databasesConfig = fromSunrc.config.databases || {};
+  const databaseNames = Object.keys(databasesConfig);
   const serviceNames = Object.keys(fromSunrc.config.services);
 
   if (serviceNames.length === 0) {
@@ -139,6 +141,7 @@ async function createHandler(options = {}) {
     devspaceConfig = buildDevspaceConfig({
       envName,
       servicesConfig,
+      databasesConfig,
       watchedServices,
       defaults,
       sunrcDir,
@@ -172,6 +175,9 @@ async function createHandler(options = {}) {
   console.log(
     `  ${ui.status.info()} Deployed services: ${deployedServiceNames.join(", ")}`,
   );
+  if (databaseNames.length > 0) {
+    console.log(`  ${ui.status.info()} Databases: ${databaseNames.join(", ")}`);
+  }
   console.log(
     `  ${ui.status.info()} Watched services: ${watchedServices.join(", ")}`,
   );

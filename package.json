@@ -9,6 +9,7 @@
   "files": [
     "bin/",
     "src/",
+    "helm-charts/",
     "debug-header-extension/",
     "scripts/",
     "README.md",

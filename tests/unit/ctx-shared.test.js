@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const { CtxSharedDriver } = require("../drivers/ctx-shared.driver");
 
 describe("ctx shared helpers", () => {
@@ -239,6 +241,91 @@ describe("ctx shared helpers", () => {
     });
 
     expect(cfg.dev.api.sync[0].path).toBe(`${siblingRepo}:/usr/src/app`);
+  });
+
+  test("buildDevspaceConfig resolves repoPath relative to a cloned repo root", () => {
+    const monorepo = driver.createSiblingRepo("ShoppingList");
+    const apiDir = path.join(monorepo, "api");
+    fs.mkdirSync(apiDir, { recursive: true });
+
+    const cfg = driver.buildDevspaceConfig({
+      servicesConfig: {
+        api: {
+          repo: "ShoppingList",
+          repoPath: "api",
+          chart: driver.getChartDir(),
+        },
+      },
+      sunrcDir: driver.getTempRoot(),
+    });
+
+    expect(cfg.dev.api.sync[0].path).toBe(`${apiDir}:/usr/src/app`);
+  });
+
+  test("buildDevspaceConfig omits dev blocks for deployOnly services", () => {
+    const cfg = driver.buildDevspaceConfig({
+      servicesConfig: {
+        db: {
+          deployOnly: true,
+          port: 3306,
+          image: "mysql:8.0",
+          chart: driver.getChartDir(),
+        },
+        api: {
+          repoPath: driver.getRepoPath(),
+          port: 8080,
+          chart: driver.getChartDir(),
+        },
+      },
+      watchedServices: ["api", "db"],
+    });
+
+    expect(Object.keys(cfg.deployments).sort()).toEqual(["api", "db"]);
+    expect(Object.keys(cfg.dev)).toEqual(["api"]);
+    expect(cfg.deployments.db.helm.values.name).toBe("dev1-db");
+  });
+
+  test("buildDevspaceConfig deploys databases with port-forward dev blocks", () => {
+    const cfg = driver.buildDevspaceConfig({
+      databasesConfig: {
+        "shop-db": {
+          engine: "mysql",
+          env: {
+            MYSQL_ROOT_PASSWORD: "admin",
+            MYSQL_DATABASE: "shopping_db",
+          },
+        },
+      },
+      servicesConfig: {
+        api: {
+          db: "shop-db",
+          repoPath: driver.getRepoPath(),
+          port: 3000,
+          chart: driver.getChartDir(),
+        },
+      },
+      watchedServices: ["api"],
+    });
+
+    expect(cfg.deployments["shop-db"].helm.values.engine).toBe("mysql");
+    expect(cfg.deployments["shop-db"].helm.values.env.MYSQL_DATABASE).toBe(
+      "shopping_db",
+    );
+    expect(cfg.dev["shop-db"].ports[0].port).toBe("3306");
+    expect(cfg.dev["shop-db"].sync).toBeUndefined();
+    expect(cfg.deployments.api.helm.values.env.MYSQL_HOST).toBe("dev1-shop-db");
+    expect(cfg.deployments.api.helm.chart.name).toBe(driver.getChartDir());
+  });
+
+  test("buildDevspaceConfig throws when service references unknown database", () => {
+    expect(() =>
+      driver.buildDevspaceConfig({
+        servicesConfig: {
+          api: { db: "missing", chart: driver.getChartDir() },
+        },
+        watchedServices: ["api"],
+      }),
+    ).toThrow(/unknown database "missing"/);
   });
 
   test("buildDevspaceConfig throws when service has no chart", () => {

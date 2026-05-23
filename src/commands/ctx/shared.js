@@ -2,6 +2,11 @@ const path = require("path");
 const fs = require("fs");
 const paths = require("../../paths");
 const { resolveChart } = require("../../utils/chart-resolver");
+const {
+  buildDbHelmValues,
+  buildServiceDbEnv,
+  defaultDbChartPath,
+} = require("../../utils/db");
 const { execSync } = require("child_process");
 
 function currentKubectlContext() {
@@ -41,12 +46,7 @@ function ensureClusterContext({ requestedCluster, currentContext } = {}) {
   );
 }
 
-function resolveRepoPath(service, serviceName, sunrcDir) {
-  if (service.repoPath) {
-    return path.isAbsolute(service.repoPath)
-      ? service.repoPath
-      : path.resolve(sunrcDir, service.repoPath);
-  }
+function resolveRepoRoot(service, serviceName, sunrcDir) {
   const repoName = service.repo || serviceName;
   if (path.isAbsolute(repoName)) return repoName;
 
@@ -54,6 +54,21 @@ function resolveRepoPath(service, serviceName, sunrcDir) {
   if (fs.existsSync(sibling)) return sibling;
 
   return path.join(paths.workspaceDir(), repoName);
+}
+
+function resolveRepoPath(service, serviceName, sunrcDir) {
+  if (service.repoPath) {
+    const repoPath = service.repoPath;
+    if (path.isAbsolute(repoPath)) return repoPath;
+    if (service.repo) {
+      return path.resolve(
+        resolveRepoRoot(service, serviceName, sunrcDir),
+        repoPath,
+      );
+    }
+    return path.resolve(sunrcDir, repoPath);
+  }
+  return resolveRepoRoot(service, serviceName, sunrcDir);
 }
 
 function parseCsvList(value) {
@@ -93,6 +108,7 @@ function splitHost(host) {
 function buildDevspaceConfig({
   envName,
   servicesConfig,
+  databasesConfig = {},
   watchedServices,
   defaults = {},
   sunrcDir = process.cwd(),
@@ -109,6 +125,27 @@ function buildDevspaceConfig({
     },
   };
 
+  for (const [dbName, dbConfig] of Object.entries(databasesConfig)) {
+    const helmDbValues = buildDbHelmValues(dbName, dbConfig, envName);
+    const fullName = helmDbValues.name;
+    const port = helmDbValues.port;
+    const chartPath = dbConfig.chart
+      ? resolveChart(dbConfig.chart, sunrcDir)
+      : defaultDbChartPath();
+
+    devspaceConfig.deployments[dbName] = {
+      helm: {
+        chart: { name: chartPath },
+        values: helmDbValues,
+      },
+    };
+
+    devspaceConfig.dev[dbName] = {
+      labelSelector: { service: fullName },
+      ports: [{ port: `${port}` }],
+    };
+  }
+
   for (const [serviceName, service] of Object.entries(servicesConfig)) {
     const fullName = `${envName}-${serviceName}`;
     const repoPath = resolveRepoPath(service, serviceName, sunrcDir);
@@ -116,19 +153,36 @@ function buildDevspaceConfig({
     const image = service.image || defaults.image || "node:20-alpine";
     const workingDir =
       service.workingDir || defaults.workingDir || "/usr/src/app";
-    const installCmd =
-      service.install || defaults.install || "npm install";
+    const installCmd = service.install || defaults.install || "npm install";
     const devCmd = service.command || defaults.command || "npm run dev";
     const isWatched = watchedServices.includes(serviceName);
+    const deployOnly = service.deployOnly === true;
+
+    if (service.db && !databasesConfig[service.db]) {
+      throw new Error(
+        `Service "${serviceName}" references unknown database "${service.db}"`,
+      );
+    }
 
     const chartPath = resolveChart(service.chart, sunrcDir);
+
+    const serviceValues = { ...(service.values || {}) };
+    if (service.db) {
+      const dbConfig = databasesConfig[service.db];
+      const dbFullName = `${envName}-${service.db}`;
+      const dbEnv = buildServiceDbEnv(service.db, dbConfig, dbFullName);
+      serviceValues.env = {
+        ...dbEnv,
+        ...(serviceValues.env || {}),
+      };
+    }
 
     const helmValues = {
       name: fullName,
       port,
       image,
-      workingDir,
-      ...(service.values || {}),
+      ...(deployOnly ? {} : { workingDir }),
+      ...serviceValues,
     };
 
     devspaceConfig.deployments[serviceName] = {
@@ -138,13 +192,11 @@ function buildDevspaceConfig({
       },
     };
 
+    if (deployOnly) continue;
+
     devspaceConfig.dev[serviceName] = {
       labelSelector: { service: fullName },
-      command: [
-        "sh",
-        "-c",
-        `cd ${workingDir} && ${installCmd} && ${devCmd}`,
-      ],
+      command: ["sh", "-c", `cd ${workingDir} && ${installCmd} && ${devCmd}`],
       ports: [{ port: `${port}` }],
       sync: [
         {
@@ -163,6 +215,7 @@ function buildDevspaceConfig({
 module.exports = {
   currentKubectlContext,
   ensureClusterContext,
+  resolveRepoPath,
   parseCsvList,
   sanitizeEnvName,
   splitHost,
