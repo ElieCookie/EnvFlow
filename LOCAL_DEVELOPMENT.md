@@ -58,9 +58,11 @@ sun ctx ls
 
 If the global `sun` command behaves differently from `node bin/sun.js`, check that the linked package points to the current checkout.
 
-## Example Minikube Flow
+## Example Minikube Flows
 
-Use the bundled example app to verify the happy path:
+Use the bundled examples to verify the happy path. See [examples/README.md](examples/README.md) for all demos.
+
+Minimal smoke test:
 
 ```bash
 minikube start

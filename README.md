@@ -2,6 +2,29 @@
 
 Generic platform CLI for EnvFlow: **rise** (setup), **doctor** (checks), and **ctx** (`create` / `ls` / `delete`). Targets **minikube** by default and can target any Kubernetes context configured in kubeconfig.
 
+## Demo examples
+
+Runnable live demos under [`examples/`](examples/README.md). Each runs on minikube with file sync and live dev commands.
+
+| Example                                 | Command entrypoint                                           | Verify                              |
+| --------------------------------------- | ------------------------------------------------------------ | ----------------------------------- |
+| [hello-api](examples/hello-api)         | `cd examples/hello-api && sun ctx create --name demo --yes`  | `curl http://localhost:8080`        |
+| [python-api](examples/python-api)       | `cd examples/python-api && sun ctx create --name demo --yes` | `curl http://localhost:8080/health` |
+| [go-api](examples/go-api)               | `cd examples/go-api && sun ctx create --name demo --yes`     | `curl http://localhost:8080/health` |
+| [shopping-list](examples/shopping-list) | `./setup.sh` then `sun ctx create --name shop --yes`         | `open http://localhost:8080`        |
+
+Common setup:
+
+```bash
+minikube start
+sun rise
+sun doctor
+```
+
+Edit source locally while `sun ctx create` is running — DevSpace syncs files and the dev command reloads (NestJS/Vite/Uvicorn) or restarts (Go). Tear down with `sun ctx delete --name <env> --yes`.
+
+See [examples/README.md](examples/README.md) and each example's README for full runbooks.
+
 ## Quick start (minikube)
 
 ```bash
@@ -80,11 +103,19 @@ sun ctx delete --cluster minikube # target an explicit kubectl context
 ## `.sunrc` shape
 
 ```yaml
-org: your-github-org   # optional, used by `sun rise` clones
+org: your-github-org # optional, used by `sun rise` clones
+
+databases:
+  shop-db:
+    engine: mysql # mysql | postgres
+    env:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: shopping_db
 
 services:
   example-api:
-    repo: example-backend     # local code dir (see resolution rules)
+    db: shop-db # optional link — injects DB env vars into the deployment
+    repo: example-backend # local code dir (see resolution rules)
     port: 8080
     image: node:20-alpine
     workingDir: /usr/src/app
@@ -94,6 +125,17 @@ services:
     values:
       replicas: 1
       env: { LOG_LEVEL: debug }
+    deployOnly: false # true = Helm deploy only, no DevSpace sync
+```
+
+With `repo` + `repoPath`, the code path resolves to `<repo>/repoPath` (monorepo subdirs).
+
+```yaml
+services:
+  api:
+    repo: ShoppingList
+    repoPath: api
+    chart: ./chart-api
 ```
 
 ### `repo` resolution
