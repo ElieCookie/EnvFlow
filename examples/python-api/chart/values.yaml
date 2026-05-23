@@ -1,0 +1,4 @@
+name: python-api
+image: python:3.12-slim
+port: 8080
+workingDir: /usr/src/app
