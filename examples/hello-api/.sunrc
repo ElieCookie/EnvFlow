@@ -12,7 +12,7 @@ services:
     port: 8080
     image: node:20-alpine
     workingDir: /usr/src/app
-    command: node server.js
+    command: node --watch server.js
     install: "true"     # no deps in this demo
     # Per-service chart. Three forms supported:
     #   chart: ./chart                     # local path (used here)

@@ -7,8 +7,8 @@ services:
   go-api:
     repo: app
     port: 8080
-    image: golang:1.22-alpine
+    image: golang:1.24-alpine
     workingDir: /usr/src/app
-    install: go mod download
-    command: go run .
+    install: go install github.com/mitranim/gow@latest && go mod download
+    command: gow run .
     chart: ./chart
